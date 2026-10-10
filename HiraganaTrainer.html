@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hiragana Trainer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #ffffff;
+    color: #111111;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .logo { font-size: 1.4rem; font-weight: 700; color: #1a73e8; }
+  .header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button, .btn {
+    background: #1a73e8;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:hover, .btn:hover { background: #1557b0; transform: translateY(-1px); }
+  button.secondary { background: #e8f0fe; color: #1a73e8; }
+  button.secondary:hover { background: #d2e3fc; }
+  button.danger { background: #d93025; color: #ffffff; }
+  button.danger:hover { background: #b3261e; }
+  main { flex: 1; padding: 24px 16px; max-width: 700px; margin: 0 auto; width: 100%; }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 8px; color: #111111; }
+  h2 { font-size: 1.25rem; margin-bottom: 12px; color: #1a73e8; }
+  p { line-height: 1.5; margin-bottom: 12px; color: #222222; }
+  .highlight { background: #e8f0fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #111111; }
+  .big-char {
+    font-size: 7rem;
+    text-align: center;
+    margin: 20px 0;
+    line-height: 1;
+    user-select: none;
+    color: #111111;
+  }
+  .romaji { text-align: center; font-size: 1.8rem; color: #333333; margin-bottom: 16px; }
+  .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1rem;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    color: #111111;
+    background: #ffffff;
+  }
+  input:focus { outline: none; border-color: #1a73e8; }
+  .correct { border-color: #34a853 !important; background: #e6f4ea; }
+  .wrong { border-color: #d93025 !important; background: #fce8e6; }
+  .score-badge {
+    display: inline-block;
+    background: #1a73e8;
+    color: #ffffff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .points-pop { animation: pop 0.4s ease; }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  .group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .group-btn {
+    padding: 12px 8px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111111;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.95rem;
+  }
+  .group-btn.active { border-color: #1a73e8; background: #e8f0fe; font-weight: 600; color: #111111; }
+  .group-btn:hover { border-color: #1a73e8; }
+  .nav-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .nav-tabs button { flex: 1; min-width: 100px; }
+  .nav-tabs button.active { background: #1557b0; }
+  .hidden { display: none !important; }
+  .tip {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #222222;
+    margin-top: 12px;
+  }
+  footer {
+    text-align: center;
+    padding: 16px;
+    color: #444444;
+    font-size: 0.85rem;
+    border-top: 1px solid #eee;
+  }
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 28px;
+    width: 90%;
+    max-width: 400px;
+    color: #111111;
+  }
+  .modal h2 { margin-bottom: 16px; color: #111111; }
+  .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #333333;
+    padding: 0 6px;
+  }
+  label { color: #222222; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">あ Hiragana Trainer</div>
+    <div class="header-right">
+      <button class="secondary" onclick="openModal('settingsModal')">Settings</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- GUIDE -->
+    <div id="guideSection" class="card">
+      <h1>Welcome!</h1>
+      <p>This is a simple, clean Hiragana trainer made for people who want to learn without clutter.</p>
+      <p><span class="highlight">Start here:</span></p>
+      <ol style="margin-left: 20px; line-height: 1.7; color: #222222;">
+        <li>Go to <strong>Learn</strong> and pick the vowel group first (あいうえお)</li>
+        <li>Practice until you know them, then try the <strong>Quick Quiz</strong></li>
+        <li>Unlock more groups when you feel ready</li>
+      </ol>
+      <div class="btn-row">
+        <button onclick="showSection('learn')">Start Learning →</button>
+      </div>
+    </div>
+
+    <!-- NAV -->
+    <div class="nav-tabs" id="mainNav">
+      <button onclick="showSection('guide')" id="tabGuide">Guide</button>
+      <button onclick="showSection('learn')" id="tabLearn">Learn</button>
+      <button onclick="showSection('quiz')" id="tabQuiz">Quick Quiz</button>
+    </div>
+
+    <!-- LEARN -->
+    <div id="learnSection" class="card hidden">
+      <h2>Learn Hiragana</h2>
+      <p>Choose which group you want to practice:</p>
+      <div class="group-grid" id="learnGroupGrid"></div>
+      <div id="learnContent" class="hidden">
+        <div class="big-char" id="learnChar">あ</div>
+        <div class="romaji" id="learnRomaji">a</div>
+        <div class="btn-row">
+          <button onclick="speakCurrent()">🔊 Say it</button>
+          <button class="secondary" onclick="nextLearn()">Next →</button>
+        </div>
+        <div class="tip" id="learnTip">Tip: Say it out loud while looking at the character.</div>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div id="quizSection" class="card hidden">
+      <h2>Quick Quiz</h2>
+      <p>Choose which group to quiz:</p>
+      <div class="group-grid" id="quizGroupGrid"></div>
+      <div id="quizContent" class="hidden">
+        <div style="text-align:center; margin-bottom: 8px; color: #111111;">
+          Score: <span class="score-badge" id="scoreDisplay">0</span>
+        </div>
+        <div class="big-char" id="quizChar">あ</div>
+        <input type="text" id="quizInput" placeholder="Type the sound (romaji)..." autocomplete="off" autofocus>
+        <div class="btn-row">
+          <button onclick="checkAnswer()">Check</button>
+          <button class="secondary" onclick="speakCurrent()">🔊 Say it</button>
+          <button class="secondary" onclick="skipQuiz()">Skip</button>
+        </div>
+        <div class="tip" id="quizFeedback"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Made for ADHD-friendly learning • White & clean • Progress saved locally
+  </footer>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <button class="close-btn" onclick="closeModal('settingsModal')">×</button>
+      <h2>Settings</h2>
+      <label style="display:block; margin-bottom:8px;">Sound Volume</label>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.7" style="width:100%; margin-bottom:16px;">
+      <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+        <input type="checkbox" id="autoSpeak" checked>
+        Auto-speak in Learn mode (not in Quiz)
+      </label>
+      <div class="btn-row">
+        <button class="danger" onclick="resetProgress()">Reset Score</button>
+        <button class="secondary" onclick="closeModal('settingsModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===================== DATA =====================
+const HIRAGANA = {
+  vowels: [
+    {char:'あ', romaji:'a'}, {char:'い', romaji:'i'}, {char:'う', romaji:'u'},
+    {char:'え', romaji:'e'}, {char:'お', romaji:'o'}
+  ],
+  k: [
+    {char:'か', romaji:'ka'}, {char:'き', romaji:'ki'}, {char:'く', romaji:'ku'},
+    {char:'け', romaji:'ke'}, {char:'こ', romaji:'ko'}
+  ],
+  s: [
+    {char:'さ', romaji:'sa'}, {char:'し', romaji:'shi'}, {char:'す', romaji:'su'},
+    {char:'せ', romaji:'se'}, {char:'そ', romaji:'so'}
+  ],
+  t: [
+    {char:'た', romaji:'ta'}, {char:'ち', romaji:'chi'}, {char:'つ', romaji:'tsu'},
+    {char:'て', romaji:'te'}, {char:'と', romaji:'to'}
+  ],
+  n: [
+    {char:'な', romaji:'na'}, {char:'に', romaji:'ni'}, {char:'ぬ', romaji:'nu'},
+    {char:'ね', romaji:'ne'}, {char:'の', romaji:'no'}
+  ],
+  h: [
+    {char:'は', romaji:'ha'}, {char:'ひ', romaji:'hi'}, {char:'ふ', romaji:'fu'},
+    {char:'へ', romaji:'he'}, {char:'ほ', romaji:'ho'}
+  ],
+  m: [
+    {char:'ま', romaji:'ma'}, {char:'み', romaji:'mi'}, {char:'む', romaji:'mu'},
+    {char:'め', romaji:'me'}, {char:'も', romaji:'mo'}
+  ],
+  y: [
+    {char:'や', romaji:'ya'}, {char:'ゆ', romaji:'yu'}, {char:'よ', romaji:'yo'}
+  ],
+  r: [
+    {char:'ら', romaji:'ra'}, {char:'り', romaji:'ri'}, {char:'る', romaji:'ru'},
+    {char:'れ', romaji:'re'}, {char:'ろ', romaji:'ro'}
+  ],
+  w: [
+    {char:'わ', romaji:'wa'}, {char:'を', romaji:'wo'}, {char:'ん', romaji:'n'}
+  ]
+};
+
+const GROUP_NAMES = {
+  vowels: 'Vowels (あいうえお)',
+  k: 'K-row (かきくけこ)',
+  s: 'S-row (さしすせそ)',
+  t: 'T-row (たちつてと)',
+  n: 'N-row (なにぬねの)',
+  h: 'H-row (はひふへほ)',
+  m: 'M-row (まみむめも)',
+  y: 'Y-row (やゆよ)',
+  r: 'R-row (らりるれろ)',
+  w: 'W-row (わをん)'
+};
+
+// ===================== STATE =====================
+let score = 0;
+let currentGroup = 'vowels';
+let currentIndex = 0;
+let learnList = [];
+let quizList = [];
+let currentQuizItem = null;
+
+// ===================== AUDIO =====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let volume = 0.7;
+
+function playTone(freq, duration, type='sine') {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume * 0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playCorrect() {
+  playTone(523.25, 0.1);
+  setTimeout(() => playTone(659.25, 0.15), 100);
+}
+function playWrong() {
+  playTone(200, 0.25, 'square');
+}
+function playClick() {
+  playTone(800, 0.05);
+}
+
+// Text-to-speech
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ja-JP';
+  utter.rate = 0.85;
+  utter.volume = volume;
+  const voices = speechSynthesis.getVoices();
+  const jaVoice = voices.find(v => v.lang.startsWith('ja'));
+  if (jaVoice) utter.voice = jaVoice;
+  speechSynthesis.speak(utter);
+}
+
+function speakCurrent() {
+  playClick();
+  const item = currentQuizItem || (learnList[currentIndex]);
+  if (item) speak(item.romaji);
+}
+
+// ===================== UI HELPERS =====================
+function openModal(id) {
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function showSection(name) {
+  ['guide','learn','quiz'].forEach(s => {
+    document.getElementById(s + 'Section').classList.add('hidden');
+    document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1)).classList.remove('active');
+  });
+  document.getElementById(name + 'Section').classList.remove('hidden');
+  document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  if (name === 'learn') renderGroupGrid('learn');
+  if (name === 'quiz') renderGroupGrid('quiz');
+}
+
+function renderGroupGrid(mode) {
+  const grid = document.getElementById(mode + 'GroupGrid');
+  grid.innerHTML = '';
+  for (const key in GROUP_NAMES) {
+    const btn = document.createElement('button');
+    btn.className = 'group-btn' + (currentGroup === key ? ' active' : '');
+    btn.textContent = GROUP_NAMES[key].split(' ')[0];
+    btn.title = GROUP_NAMES[key];
+    btn.onclick = () => selectGroup(key, mode);
+    grid.appendChild(btn);
+  }
+}
+
+function selectGroup(key, mode) {
+  currentGroup = key;
+  playClick();
+  renderGroupGrid(mode);
+  if (mode === 'learn') startLearn();
+  if (mode === 'quiz') startQuiz();
+}
+
+// ===================== LEARN =====================
+function startLearn() {
+  learnList = [...HIRAGANA[currentGroup]];
+  currentIndex = 0;
+  document.getElementById('learnContent').classList.remove('hidden');
+  showLearnItem();
+}
+
+function showLearnItem() {
+  const item = learnList[currentIndex];
+  document.getElementById('learnChar').textContent = item.char;
+  document.getElementById('learnRomaji').textContent = item.romaji;
+  if (document.getElementById('autoSpeak').checked) speak(item.romaji);
+}
+
+function nextLearn() {
+  playClick();
+  currentIndex = (currentIndex + 1) % learnList.length;
+  showLearnItem();
+}
+
+// ===================== QUIZ =====================
+function startQuiz() {
+  quizList = [...HIRAGANA[currentGroup]];
+  shuffle(quizList);
+  document.getElementById('quizContent').classList.remove('hidden');
+  document.getElementById('quizFeedback').textContent = '';
+  nextQuizItem();
+}
+
+function nextQuizItem() {
+  if (quizList.length === 0) {
+    quizList = [...HIRAGANA[currentGroup]];
+    shuffle(quizList);
+  }
+  currentQuizItem = quizList.pop();
+  document.getElementById('quizChar').textContent = currentQuizItem.char;
+  document.getElementById('quizInput').value = '';
+  document.getElementById('quizInput').classList.remove('correct','wrong');
+  document.getElementById('quizFeedback').textContent = '';
+  document.getElementById('quizInput').focus();
+  // No auto-speak in quiz — that would give away the answer
+}
+
+function checkAnswer() {
+  const input = document.getElementById('quizInput');
+  const answer = input.value.trim().toLowerCase();
+  if (!answer) return;
+  if (answer === currentQuizItem.romaji) {
+    playCorrect();
+    input.classList.add('correct');
+    document.getElementById('quizFeedback').textContent = 'Correct! +10 points';
+    score += 10;
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('scoreDisplay').classList.add('points-pop');
+    setTimeout(() => document.getElementById('scoreDisplay').classList.remove('points-pop'), 400);
+    localStorage.setItem('hiragana_score', score);
+    setTimeout(nextQuizItem, 700);
+  } else {
+    playWrong();
+    input.classList.add('wrong');
+    document.getElementById('quizFeedback').textContent = 'Wrong. Correct is: ' + currentQuizItem.romaji;
+  }
+}
+
+function skipQuiz() {
+  playClick();
+  nextQuizItem();
+}
+
+document.getElementById('quizInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkAnswer();
+});
+
+// ===================== SETTINGS =====================
+document.getElementById('volumeSlider').addEventListener('input', e => {
+  volume = parseFloat(e.target.value);
+});
+
+function resetProgress() {
+  if (!confirm('Reset your score?')) return;
+  score = 0;
+  localStorage.setItem('hiragana_score', 0);
+  document.getElementById('scoreDisplay').textContent = '0';
+  closeModal('settingsModal');
+}
+
+// ===================== UTILS =====================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+// ===================== INIT =====================
+score = parseInt(localStorage.getItem('hiragana_score') || '0');
+document.getElementById('scoreDisplay').textContent = score;
+showSection('guide');
+if (window.speechSynthesis) speechSynthesis.getVoices();
+</script>
+</body>
+</html>

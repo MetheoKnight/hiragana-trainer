@@ -163,7 +163,7 @@
   }
   label { color: #222222; }
 
-  /* Writing canvas */
+  /* Writing */
   .write-layout {
     display: flex;
     flex-direction: column;
@@ -191,6 +191,16 @@
     cursor: crosshair;
     max-width: 100%;
   }
+  .accuracy-result {
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 32px;
+  }
+  .accuracy-good { color: #34a853; }
+  .accuracy-ok { color: #f9ab00; }
+  .accuracy-bad { color: #d93025; }
 </style>
 </head>
 <body>
@@ -210,7 +220,7 @@
       <ol style="margin-left: 20px; line-height: 1.7; color: #222222;">
         <li>Go to <strong>Learn</strong> and pick the vowel group first (あいうえお)</li>
         <li>Practice until you know them, then try the <strong>Quick Quiz</strong></li>
-        <li>Use <strong>Write</strong> to practice the actual shapes from memory</li>
+        <li>Use <strong>Write</strong> to practice the actual shapes + check accuracy</li>
         <li>Unlock more groups when you feel ready</li>
       </ol>
       <div class="btn-row">
@@ -245,22 +255,24 @@
     <!-- WRITE -->
     <div id="writeSection" class="card hidden">
       <h2>Write Hiragana</h2>
-      <p>Practice the actual shape. Hide the reference to test pure memory.</p>
+      <p>Practice the shape. Hide the reference, draw from memory, then check accuracy.</p>
       <div class="group-grid" id="writeGroupGrid"></div>
       <div id="writeContent" class="hidden">
         <div class="write-layout">
           <div class="romaji" id="writeRomaji">a</div>
           <div class="ref-char" id="writeRefChar">あ</div>
           <canvas id="writeCanvas" width="320" height="320"></canvas>
+          <div class="accuracy-result" id="accuracyResult"></div>
           <div class="btn-row">
             <button onclick="clearCanvas()">Clear</button>
             <button class="secondary" onclick="toggleRef()">Hide / Show</button>
+            <button onclick="checkAccuracy()">Check Accuracy</button>
             <button class="secondary" onclick="speakCurrent()">🔊 Say it</button>
             <button onclick="nextWrite()">Next →</button>
           </div>
           <div class="tip">
-            Tip: Look → Hide → Draw from memory → Show again to check.  
-            This is the best way to lock the shapes into your mind.
+            Tip: Look → Hide → Draw from memory → Check Accuracy.  
+            Aim for 70%+ to really lock the shape in.
           </div>
         </div>
       </div>
@@ -530,6 +542,8 @@ canvas.addEventListener('touchend', endDraw);
 function clearCanvas() {
   playClick();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('accuracyResult').textContent = '';
+  document.getElementById('accuracyResult').className = 'accuracy-result';
 }
 
 function toggleRef() {
@@ -567,6 +581,82 @@ function nextWrite() {
   playClick();
   currentIndex = (currentIndex + 1) % writeList.length;
   showWriteItem();
+}
+
+// ========== ACCURACY CALCULATION ==========
+function checkAccuracy() {
+  if (!currentWriteItem) return;
+
+  const size = canvas.width;
+  // Create temporary canvas with the ideal character
+  const temp = document.createElement('canvas');
+  temp.width = size;
+  temp.height = size;
+  const tctx = temp.getContext('2d');
+
+  // Clear and draw the character large and centered
+  tctx.fillStyle = '#ffffff';
+  tctx.fillRect(0, 0, size, size);
+  tctx.fillStyle = '#111111';
+  tctx.font = `${Math.floor(size * 0.72)}px "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif`;
+  tctx.textAlign = 'center';
+  tctx.textBaseline = 'middle';
+  tctx.fillText(currentWriteItem.char, size / 2, size / 2);
+
+  // Get image data
+  const userData = ctx.getImageData(0, 0, size, size).data;
+  const idealData = tctx.getImageData(0, 0, size, size).data;
+
+  let userInk = 0;
+  let idealInk = 0;
+  let overlap = 0;
+
+  // We only care about dark pixels (ink)
+  for (let i = 0; i < userData.length; i += 4) {
+    const userDark = userData[i] < 180 && userData[i+3] > 50;   // dark enough
+    const idealDark = idealData[i] < 180 && idealData[i+3] > 50;
+
+    if (userDark) userInk++;
+    if (idealDark) idealInk++;
+    if (userDark && idealDark) overlap++;
+  }
+
+  // Avoid division by zero
+  if (userInk < 30) {
+    document.getElementById('accuracyResult').textContent = 'Draw something first!';
+    document.getElementById('accuracyResult').className = 'accuracy-result accuracy-bad';
+    playWrong();
+    return;
+  }
+
+  // Dice coefficient (good for shape similarity)
+  const dice = (2 * overlap) / (userInk + idealInk);
+  let accuracy = Math.round(dice * 100);
+
+  // Small boost because freehand is never perfect
+  accuracy = Math.min(100, accuracy + 8);
+
+  // Show result
+  const resultEl = document.getElementById('accuracyResult');
+  resultEl.textContent = `Accuracy: ${accuracy}%`;
+
+  if (accuracy >= 75) {
+    resultEl.className = 'accuracy-result accuracy-good';
+    resultEl.textContent += '  — Great!';
+    playCorrect();
+    // Bonus points
+    score += 15;
+    document.getElementById('scoreDisplay').textContent = score;
+    localStorage.setItem('hiragana_score', score);
+  } else if (accuracy >= 55) {
+    resultEl.className = 'accuracy-result accuracy-ok';
+    resultEl.textContent += '  — Good, keep going';
+    playClick();
+  } else {
+    resultEl.className = 'accuracy-result accuracy-bad';
+    resultEl.textContent += '  — Keep practicing';
+    playWrong();
+  }
 }
 
 // QUIZ

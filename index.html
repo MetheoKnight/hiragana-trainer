@@ -163,7 +163,7 @@
   }
   label { color: #222222; }
 
-  /* Writing canvas styles */
+  /* Writing canvas */
   .write-layout {
     display: flex;
     flex-direction: column;
@@ -182,10 +182,6 @@
   }
   .ref-char.hidden-ref {
     color: transparent;
-    text-shadow: none;
-  }
-  .ref-char.faded {
-    color: #d0d0d0;
   }
   #writeCanvas {
     border: 2px solid #ccc;
@@ -194,10 +190,6 @@
     touch-action: none;
     cursor: crosshair;
     max-width: 100%;
-  }
-  .canvas-wrap {
-    position: relative;
-    display: inline-block;
   }
 </style>
 </head>
@@ -246,11 +238,11 @@
           <button onclick="speakCurrent()">🔊 Say it</button>
           <button class="secondary" onclick="nextLearn()">Next →</button>
         </div>
-        <div class="tip" id="learnTip">Tip: Say it out loud while looking at the character.</div>
+        <div class="tip">Tip: Say it out loud while looking at the character.</div>
       </div>
     </div>
 
-    <!-- WRITE / DRAW -->
+    <!-- WRITE -->
     <div id="writeSection" class="card hidden">
       <h2>Write Hiragana</h2>
       <p>Practice the actual shape. Hide the reference to test pure memory.</p>
@@ -259,9 +251,7 @@
         <div class="write-layout">
           <div class="romaji" id="writeRomaji">a</div>
           <div class="ref-char" id="writeRefChar">あ</div>
-          <div class="canvas-wrap">
-            <canvas id="writeCanvas" width="320" height="320"></canvas>
-          </div>
+          <canvas id="writeCanvas" width="320" height="320"></canvas>
           <div class="btn-row">
             <button onclick="clearCanvas()">Clear</button>
             <button class="secondary" onclick="toggleRef()">Hide / Show</button>
@@ -269,8 +259,8 @@
             <button onclick="nextWrite()">Next →</button>
           </div>
           <div class="tip">
-            Tip: Look at the character → hide it → draw from memory → show again to check.
-            Repeat until the shape feels natural in your hand.
+            Tip: Look → Hide → Draw from memory → Show again to check.  
+            This is the best way to lock the shapes into your mind.
           </div>
         </div>
       </div>
@@ -282,11 +272,11 @@
       <p>Choose which group to quiz:</p>
       <div class="group-grid" id="quizGroupGrid"></div>
       <div id="quizContent" class="hidden">
-        <div style="text-align:center; margin-bottom: 8px; color: #111111;">
+        <div style="text-align:center; margin-bottom: 8px;">
           Score: <span class="score-badge" id="scoreDisplay">0</span>
         </div>
         <div class="big-char" id="quizChar">あ</div>
-        <input type="text" id="quizInput" placeholder="Type the sound (romaji)..." autocomplete="off" autofocus>
+        <input type="text" id="quizInput" placeholder="Type the sound (romaji)..." autocomplete="off">
         <div class="btn-row">
           <button onclick="checkAnswer()">Check</button>
           <button class="secondary" onclick="speakCurrent()">🔊 Say it</button>
@@ -301,7 +291,7 @@
     Made for ADHD-friendly learning • White & clean • Progress saved locally
   </footer>
 
-  <!-- SETTINGS MODAL -->
+  <!-- SETTINGS -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
       <button class="close-btn" onclick="closeModal('settingsModal')">×</button>
@@ -310,7 +300,7 @@
       <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.7" style="width:100%; margin-bottom:16px;">
       <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
         <input type="checkbox" id="autoSpeak" checked>
-        Auto-speak in Learn mode (not in Quiz)
+        Auto-speak in Learn mode
       </label>
       <div class="btn-row">
         <button class="danger" onclick="resetProgress()">Reset Score</button>
@@ -320,7 +310,6 @@
   </div>
 
 <script>
-// ===================== DATA =====================
 const HIRAGANA = {
   vowels: [
     {char:'あ', romaji:'a'}, {char:'い', romaji:'i'}, {char:'う', romaji:'u'},
@@ -375,7 +364,6 @@ const GROUP_NAMES = {
   w: 'W-row (わをん)'
 };
 
-// ===================== STATE =====================
 let score = 0;
 let currentGroup = 'vowels';
 let currentIndex = 0;
@@ -386,11 +374,11 @@ let currentQuizItem = null;
 let currentWriteItem = null;
 let refVisible = true;
 
-// ===================== AUDIO =====================
+// Audio
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let volume = 0.7;
 
-function playTone(freq, duration, type='sine') {
+function playTone(freq, duration, type = 'sine') {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
@@ -402,19 +390,13 @@ function playTone(freq, duration, type='sine') {
   osc.start();
   osc.stop(audioCtx.currentTime + duration);
 }
-
 function playCorrect() {
   playTone(523.25, 0.1);
   setTimeout(() => playTone(659.25, 0.15), 100);
 }
-function playWrong() {
-  playTone(200, 0.25, 'square');
-}
-function playClick() {
-  playTone(800, 0.05);
-}
+function playWrong() { playTone(200, 0.25, 'square'); }
+function playClick() { playTone(800, 0.05); }
 
-// Text-to-speech
 function speak(text) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -430,20 +412,16 @@ function speak(text) {
 
 function speakCurrent() {
   playClick();
-  const item = currentQuizItem || currentWriteItem || (learnList[currentIndex]);
+  const item = currentQuizItem || currentWriteItem || learnList[currentIndex];
   if (item) speak(item.romaji);
 }
 
-// ===================== UI HELPERS =====================
-function openModal(id) {
-  document.getElementById(id).classList.add('show');
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('show');
-}
+// UI
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 function showSection(name) {
-  ['guide','learn','write','quiz'].forEach(s => {
+  ['guide', 'learn', 'write', 'quiz'].forEach(s => {
     document.getElementById(s + 'Section').classList.add('hidden');
     const tab = document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1));
     if (tab) tab.classList.remove('active');
@@ -451,6 +429,7 @@ function showSection(name) {
   document.getElementById(name + 'Section').classList.remove('hidden');
   const activeTab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
   if (activeTab) activeTab.classList.add('active');
+
   if (name === 'learn') renderGroupGrid('learn');
   if (name === 'write') renderGroupGrid('write');
   if (name === 'quiz') renderGroupGrid('quiz');
@@ -478,35 +457,32 @@ function selectGroup(key, mode) {
   if (mode === 'quiz') startQuiz();
 }
 
-// ===================== LEARN =====================
+// LEARN
 function startLearn() {
   learnList = [...HIRAGANA[currentGroup]];
   currentIndex = 0;
   document.getElementById('learnContent').classList.remove('hidden');
   showLearnItem();
 }
-
 function showLearnItem() {
   const item = learnList[currentIndex];
   document.getElementById('learnChar').textContent = item.char;
   document.getElementById('learnRomaji').textContent = item.romaji;
   if (document.getElementById('autoSpeak').checked) speak(item.romaji);
 }
-
 function nextLearn() {
   playClick();
   currentIndex = (currentIndex + 1) % learnList.length;
   showLearnItem();
 }
 
-// ===================== WRITE / DRAW =====================
+// WRITE / DRAW
 const canvas = document.getElementById('writeCanvas');
 const ctx = canvas.getContext('2d');
 let drawing = false;
 let lastX = 0, lastY = 0;
 
 function resizeCanvas() {
-  // Keep it square and responsive-ish
   const size = Math.min(320, window.innerWidth - 60);
   canvas.width = size;
   canvas.height = size;
@@ -520,10 +496,7 @@ function getPos(e) {
   const rect = canvas.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return {
-    x: clientX - rect.left,
-    y: clientY - rect.top
-  };
+  return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
 function startDraw(e) {
@@ -533,7 +506,6 @@ function startDraw(e) {
   lastX = pos.x;
   lastY = pos.y;
 }
-
 function draw(e) {
   if (!drawing) return;
   e.preventDefault();
@@ -545,18 +517,14 @@ function draw(e) {
   lastX = pos.x;
   lastY = pos.y;
 }
-
-function endDraw() {
-  drawing = false;
-}
+function endDraw() { drawing = false; }
 
 canvas.addEventListener('mousedown', startDraw);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', endDraw);
 canvas.addEventListener('mouseout', endDraw);
-
-canvas.addEventListener('touchstart', startDraw, {passive: false});
-canvas.addEventListener('touchmove', draw, {passive: false});
+canvas.addEventListener('touchstart', startDraw, { passive: false });
+canvas.addEventListener('touchmove', draw, { passive: false });
 canvas.addEventListener('touchend', endDraw);
 
 function clearCanvas() {
@@ -570,7 +538,6 @@ function toggleRef() {
   const el = document.getElementById('writeRefChar');
   if (refVisible) {
     el.classList.remove('hidden-ref');
-    el.classList.remove('faded');
   } else {
     el.classList.add('hidden-ref');
   }
@@ -589,11 +556,10 @@ function showWriteItem() {
   document.getElementById('writeRomaji').textContent = currentWriteItem.romaji;
   document.getElementById('writeRefChar').textContent = currentWriteItem.char;
   refVisible = true;
-  document.getElementById('writeRefChar').classList.remove('hidden-ref', 'faded');
+  document.getElementById('writeRefChar').classList.remove('hidden-ref');
   clearCanvas();
   if (document.getElementById('autoSpeak').checked) {
-    // slight delay so it doesn't feel rushed
-    setTimeout(() => speak(currentWriteItem.romaji), 200);
+    setTimeout(() => speak(currentWriteItem.romaji), 150);
   }
 }
 
@@ -603,7 +569,7 @@ function nextWrite() {
   showWriteItem();
 }
 
-// ===================== QUIZ =====================
+// QUIZ
 function startQuiz() {
   quizList = [...HIRAGANA[currentGroup]];
   shuffle(quizList);
@@ -620,7 +586,7 @@ function nextQuizItem() {
   currentQuizItem = quizList.pop();
   document.getElementById('quizChar').textContent = currentQuizItem.char;
   document.getElementById('quizInput').value = '';
-  document.getElementById('quizInput').classList.remove('correct','wrong');
+  document.getElementById('quizInput').classList.remove('correct', 'wrong');
   document.getElementById('quizFeedback').textContent = '';
   document.getElementById('quizInput').focus();
 }
@@ -655,7 +621,7 @@ document.getElementById('quizInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') checkAnswer();
 });
 
-// ===================== SETTINGS =====================
+// SETTINGS
 document.getElementById('volumeSlider').addEventListener('input', e => {
   volume = parseFloat(e.target.value);
 });
@@ -668,7 +634,6 @@ function resetProgress() {
   closeModal('settingsModal');
 }
 
-// ===================== UTILS =====================
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -676,13 +641,12 @@ function shuffle(arr) {
   }
 }
 
-// ===================== INIT =====================
+// INIT
 score = parseInt(localStorage.getItem('hiragana_score') || '0');
 document.getElementById('scoreDisplay').textContent = score;
 showSection('guide');
 if (window.speechSynthesis) speechSynthesis.getVoices();
 
-// Make canvas resize on window change
 window.addEventListener('resize', () => {
   if (!document.getElementById('writeSection').classList.contains('hidden')) {
     resizeCanvas();

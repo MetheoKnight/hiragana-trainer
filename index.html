@@ -116,7 +116,7 @@
     margin-bottom: 20px;
     flex-wrap: wrap;
   }
-  .nav-tabs button { flex: 1; min-width: 100px; }
+  .nav-tabs button { flex: 1; min-width: 90px; }
   .nav-tabs button.active { background: #1557b0; }
   .hidden { display: none !important; }
   .tip {
@@ -162,6 +162,43 @@
     padding: 0 6px;
   }
   label { color: #222222; }
+
+  /* Writing canvas styles */
+  .write-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .ref-char {
+    font-size: 5.5rem;
+    line-height: 1;
+    color: #111;
+    user-select: none;
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ref-char.hidden-ref {
+    color: transparent;
+    text-shadow: none;
+  }
+  .ref-char.faded {
+    color: #d0d0d0;
+  }
+  #writeCanvas {
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    background: #fafafa;
+    touch-action: none;
+    cursor: crosshair;
+    max-width: 100%;
+  }
+  .canvas-wrap {
+    position: relative;
+    display: inline-block;
+  }
 </style>
 </head>
 <body>
@@ -181,6 +218,7 @@
       <ol style="margin-left: 20px; line-height: 1.7; color: #222222;">
         <li>Go to <strong>Learn</strong> and pick the vowel group first (あいうえお)</li>
         <li>Practice until you know them, then try the <strong>Quick Quiz</strong></li>
+        <li>Use <strong>Write</strong> to practice the actual shapes from memory</li>
         <li>Unlock more groups when you feel ready</li>
       </ol>
       <div class="btn-row">
@@ -192,6 +230,7 @@
     <div class="nav-tabs" id="mainNav">
       <button onclick="showSection('guide')" id="tabGuide">Guide</button>
       <button onclick="showSection('learn')" id="tabLearn">Learn</button>
+      <button onclick="showSection('write')" id="tabWrite">Write</button>
       <button onclick="showSection('quiz')" id="tabQuiz">Quick Quiz</button>
     </div>
 
@@ -208,6 +247,32 @@
           <button class="secondary" onclick="nextLearn()">Next →</button>
         </div>
         <div class="tip" id="learnTip">Tip: Say it out loud while looking at the character.</div>
+      </div>
+    </div>
+
+    <!-- WRITE / DRAW -->
+    <div id="writeSection" class="card hidden">
+      <h2>Write Hiragana</h2>
+      <p>Practice the actual shape. Hide the reference to test pure memory.</p>
+      <div class="group-grid" id="writeGroupGrid"></div>
+      <div id="writeContent" class="hidden">
+        <div class="write-layout">
+          <div class="romaji" id="writeRomaji">a</div>
+          <div class="ref-char" id="writeRefChar">あ</div>
+          <div class="canvas-wrap">
+            <canvas id="writeCanvas" width="320" height="320"></canvas>
+          </div>
+          <div class="btn-row">
+            <button onclick="clearCanvas()">Clear</button>
+            <button class="secondary" onclick="toggleRef()">Hide / Show</button>
+            <button class="secondary" onclick="speakCurrent()">🔊 Say it</button>
+            <button onclick="nextWrite()">Next →</button>
+          </div>
+          <div class="tip">
+            Tip: Look at the character → hide it → draw from memory → show again to check.
+            Repeat until the shape feels natural in your hand.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -315,8 +380,11 @@ let score = 0;
 let currentGroup = 'vowels';
 let currentIndex = 0;
 let learnList = [];
+let writeList = [];
 let quizList = [];
 let currentQuizItem = null;
+let currentWriteItem = null;
+let refVisible = true;
 
 // ===================== AUDIO =====================
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -362,7 +430,7 @@ function speak(text) {
 
 function speakCurrent() {
   playClick();
-  const item = currentQuizItem || (learnList[currentIndex]);
+  const item = currentQuizItem || currentWriteItem || (learnList[currentIndex]);
   if (item) speak(item.romaji);
 }
 
@@ -375,13 +443,16 @@ function closeModal(id) {
 }
 
 function showSection(name) {
-  ['guide','learn','quiz'].forEach(s => {
+  ['guide','learn','write','quiz'].forEach(s => {
     document.getElementById(s + 'Section').classList.add('hidden');
-    document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1)).classList.remove('active');
+    const tab = document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (tab) tab.classList.remove('active');
   });
   document.getElementById(name + 'Section').classList.remove('hidden');
-  document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  const activeTab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
+  if (activeTab) activeTab.classList.add('active');
   if (name === 'learn') renderGroupGrid('learn');
+  if (name === 'write') renderGroupGrid('write');
   if (name === 'quiz') renderGroupGrid('quiz');
 }
 
@@ -403,6 +474,7 @@ function selectGroup(key, mode) {
   playClick();
   renderGroupGrid(mode);
   if (mode === 'learn') startLearn();
+  if (mode === 'write') startWrite();
   if (mode === 'quiz') startQuiz();
 }
 
@@ -427,6 +499,110 @@ function nextLearn() {
   showLearnItem();
 }
 
+// ===================== WRITE / DRAW =====================
+const canvas = document.getElementById('writeCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+function resizeCanvas() {
+  // Keep it square and responsive-ish
+  const size = Math.min(320, window.innerWidth - 60);
+  canvas.width = size;
+  canvas.height = size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#111';
+}
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  const pos = getPos(e);
+  lastX = pos.x;
+  lastY = pos.y;
+}
+
+function draw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  lastX = pos.x;
+  lastY = pos.y;
+}
+
+function endDraw() {
+  drawing = false;
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('mouseout', endDraw);
+
+canvas.addEventListener('touchstart', startDraw, {passive: false});
+canvas.addEventListener('touchmove', draw, {passive: false});
+canvas.addEventListener('touchend', endDraw);
+
+function clearCanvas() {
+  playClick();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function toggleRef() {
+  playClick();
+  refVisible = !refVisible;
+  const el = document.getElementById('writeRefChar');
+  if (refVisible) {
+    el.classList.remove('hidden-ref');
+    el.classList.remove('faded');
+  } else {
+    el.classList.add('hidden-ref');
+  }
+}
+
+function startWrite() {
+  writeList = [...HIRAGANA[currentGroup]];
+  currentIndex = 0;
+  document.getElementById('writeContent').classList.remove('hidden');
+  resizeCanvas();
+  showWriteItem();
+}
+
+function showWriteItem() {
+  currentWriteItem = writeList[currentIndex];
+  document.getElementById('writeRomaji').textContent = currentWriteItem.romaji;
+  document.getElementById('writeRefChar').textContent = currentWriteItem.char;
+  refVisible = true;
+  document.getElementById('writeRefChar').classList.remove('hidden-ref', 'faded');
+  clearCanvas();
+  if (document.getElementById('autoSpeak').checked) {
+    // slight delay so it doesn't feel rushed
+    setTimeout(() => speak(currentWriteItem.romaji), 200);
+  }
+}
+
+function nextWrite() {
+  playClick();
+  currentIndex = (currentIndex + 1) % writeList.length;
+  showWriteItem();
+}
+
 // ===================== QUIZ =====================
 function startQuiz() {
   quizList = [...HIRAGANA[currentGroup]];
@@ -447,7 +623,6 @@ function nextQuizItem() {
   document.getElementById('quizInput').classList.remove('correct','wrong');
   document.getElementById('quizFeedback').textContent = '';
   document.getElementById('quizInput').focus();
-  // No auto-speak in quiz — that would give away the answer
 }
 
 function checkAnswer() {
@@ -506,6 +681,13 @@ score = parseInt(localStorage.getItem('hiragana_score') || '0');
 document.getElementById('scoreDisplay').textContent = score;
 showSection('guide');
 if (window.speechSynthesis) speechSynthesis.getVoices();
+
+// Make canvas resize on window change
+window.addEventListener('resize', () => {
+  if (!document.getElementById('writeSection').classList.contains('hidden')) {
+    resizeCanvas();
+  }
+});
 </script>
 </body>
 </html>
